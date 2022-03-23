@@ -67,6 +67,10 @@ pub fn get_line<const L: usize, const I: usize>(
         return None;
     }
 
+    if !buf.contains(&b'\r') {
+        return None;
+    }
+
     let ind = if reverse {
         buf.windows(needle.len())
             .rposition(|window| window == needle)
@@ -157,5 +161,21 @@ mod test {
 
             assert_eq!(b, Vec::<u8, 64>::from_slice(b"hello  whatup").unwrap());
         }
+    }
+
+    #[test]
+    fn test_ok_but_line_term_char_not_received_yet() {
+        let mut buf = Vec::<u8, 64>::from_slice(b"OK").unwrap();
+        let response: Option<Vec<u8, 64>> =
+            get_line(&mut buf, b"OK", b'\r', b'\n', false, false, false);
+        assert_eq!(None, response);
+    }
+
+    #[test]
+    fn test_simple_at_message() {
+        let mut buf = Vec::<u8, 64>::from_slice(b"AT\r\n").unwrap();
+        let response: Option<Vec<u8, 64>> =
+            get_line(&mut buf, b"AT", b'\r', b'\n', false, false, false);
+        assert_eq!(Some(Vec::<u8, 64>::from_slice(b"AT\r\n").unwrap()), response);
     }
 }

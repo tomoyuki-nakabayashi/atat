@@ -274,6 +274,8 @@ pub enum Command {
     Reset,
     /// Force the ingress manager into receive state
     ForceReceiveState,
+    /// Let ingress manager know how much response will be received.
+    ExpectResponses(usize),
 }
 
 /// Configuration of both the ingress manager, and the AT client. Some of these

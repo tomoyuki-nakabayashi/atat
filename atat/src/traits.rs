@@ -85,6 +85,9 @@ pub trait AtatCmd<const LEN: usize> {
     /// Implemented to enhance expandability fo ATAT
     const EXPECTS_RESPONSE_CODE: bool = true;
 
+    /// Expected responses fot the AT command.
+    const EXPECTS_RESPONSES: usize = 1;
+
     /// Return the command as a heapless `Vec` of bytes.
     fn as_bytes(&self) -> Vec<u8, LEN>;
 

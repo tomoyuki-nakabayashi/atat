@@ -54,6 +54,8 @@ pub struct Client<
     state: ClientState,
     timer: CLK,
     config: Config,
+
+    awaiting_response: usize,
 }
 
 impl<Tx, CLK, const TIMER_HZ: u32, const RES_CAPACITY: usize, const URC_CAPACITY: usize>
@@ -78,6 +80,7 @@ where
             state: ClientState::Idle,
             config,
             timer,
+            awaiting_response: 0
         }
     }
 }
@@ -97,6 +100,11 @@ where
                 // TODO: Consider how to act in this situation.
                 error!("Failed to signal parser to force state transition to 'ReceivingResponse'!",);
             }
+
+            if self.com_p.enqueue(Command::ExpectResponses(A::EXPECTS_RESPONSES)).is_err() {
+                error!("Failed to signal parser to expected responses!",);
+            }
+            self.awaiting_response = A::EXPECTS_RESPONSES;
 
             // compare the time of the last response or URC and ensure at least
             // `self.config.cmd_cooldown` ms have passed before sending a new
@@ -170,7 +178,10 @@ where
                                 MillisDurationU32::from_ticks(self.config.cmd_cooldown).convert(),
                             )
                             .ok();
-                        self.state = ClientState::Idle;
+                        self.awaiting_response -= 1;
+                        if self.awaiting_response == 0 {
+                            self.state = ClientState::Idle;
+                        }
                         Ok(r)
                     } else {
                         // FIXME: Is this correct?
@@ -658,5 +669,42 @@ mod test {
         assert_eq!(client.state, ClientState::Idle);
         assert_eq!(client.send(&cmd), Err(nb::Error::Other(Error::Parse)));
         assert_eq!(client.state, ClientState::Idle);
+    }
+
+    #[derive(Debug)]
+    struct Connect {}
+
+    impl AtatCmd<12> for Connect {
+        type Response = NoResponse;
+        type Error = GenericError;
+        const EXPECTS_RESPONSES: usize = 2;
+
+        fn as_bytes(&self) -> Vec<u8, 12> {
+            Vec::from_slice(b"AT+CONNECT\r\n").unwrap()
+        }
+
+        fn parse(
+            &self,
+            _resp: Result<&[u8], InternalError>,
+        ) -> Result<Self::Response, Error<Self::Error>>
+        {
+            Ok(NoResponse{})
+        }
+    }
+
+    #[test]
+    fn two_responses() {
+        let (mut client, mut p, _) = setup!(Config::new(Mode::Blocking));
+
+        // String last
+        let cmd = TestRespStringCmd {
+            fun: Functionality::APM,
+            rst: Some(ResetMode::DontReset),
+        };
+
+        let response = Vec::<u8, TEST_RX_BUF_LEN>::from_slice(b"").unwrap();
+        enqueue_res(&mut p, Ok(response));
+
+        assert_eq!(client.send(&cmd), Err(nb::Error::Other(Error::Parse)));
     }
 }

@@ -171,6 +171,7 @@ where
                     self.buf.clear();
                 }
                 Command::ForceReceiveState => self.digester.force_receive_state(),
+                Command::ExpectResponses(n) => self.digester.set_expect_responses(n),
             }
         }
     }
