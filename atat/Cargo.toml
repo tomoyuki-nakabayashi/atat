@@ -18,7 +18,7 @@ name = "atat"
 maintenance = { status = "actively-developed" }
 
 [dependencies]
-embedded-hal = { version = "=1.0.0-alpha.6" }
+embedded-hal = { version = "=1.0.0-alpha.8" }
 fugit = "0.3.3"
 fugit-timer = "0.1.2"
 nb = "^1"
